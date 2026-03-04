@@ -196,6 +196,23 @@ std::vector<Token> tokenize(const std::vector<std::pair<SourcePos, std::string_v
         return toksz > 1 || type == TOKEN_TYPE::DECNUM;
     };
 
+    const auto handle_pair = [](std::string_view str, size_t& strPos, size_t sz, char ch, TOKEN_TYPE s, TOKEN_TYPE d, std::vector<Token>& tokens, const SourcePos& pos, bool& start) ->bool
+        {
+            auto toktype = s;
+            size_t toksz = 1;
+            if (strPos + 1 < sz) {
+                auto& ch2 = str[strPos + toksz];
+                if (ch2 == ch) {
+                    toksz = 2;
+                    toktype = d;
+                }
+            }
+            tokens.push_back({ toktype, str.substr(strPos, toksz), pos, strPos, start });
+            strPos += toksz;
+            start = false;
+            return true;
+        };
+
     for (auto& [pos, str] : input) {
         size_t strPos = 0;
         auto start = true;
@@ -345,25 +362,15 @@ std::vector<Token> tokenize(const std::vector<std::pair<SourcePos, std::string_v
                     break;
                 }
 
+                case '>':
+                {
+                    handle_pair(str, strPos, sz, ch, TOKEN_TYPE::GT, TOKEN_TYPE::SRIGHT, tokens, pos, start);                   
+                    break;
+                }
+
                 case '|':
                 {
-                    if (strPos + 1 < sz) {
-                        toksz = 1;
-                        auto& ch = str[strPos + toksz];
-                        if (is_white(ch) || ch == '\n') {
-                            tokens.push_back({ TOKEN_TYPE::BIT_OR, str.substr(strPos, toksz), pos, strPos, start });
-                            strPos += toksz;
-                            start = false;
-                            break;
-                        }
-                        if (ch == '|') {
-                            toksz = 2;
-                            tokens.push_back({ TOKEN_TYPE::LOGICAL_OR, str.substr(strPos, toksz), pos, strPos, start });
-                            strPos += toksz;
-                            start = false;
-                            break;
-                        }
-                    }
+                    handle_pair(str, strPos, sz, ch, TOKEN_TYPE::BIT_OR, TOKEN_TYPE::LOGICAL_OR, tokens, pos, start);
                     break;
                 }
 
@@ -371,22 +378,13 @@ std::vector<Token> tokenize(const std::vector<std::pair<SourcePos, std::string_v
                 {
                     if (strPos + 1 < sz) {
                         toksz = 1;
-                        auto &ch = str[strPos + toksz];
-                        if (is_white(ch) || ch == '\n') {
-                            tokens.push_back({ TOKEN_TYPE::BIT_AND, str.substr(strPos, toksz), pos, strPos, start });
-                            strPos += toksz;
-                            start = false;
-                            break;
-                        }
-                        if (ch == '&') {
-                            toksz = 2;
-                            tokens.push_back({ TOKEN_TYPE::LOGICAL_AND, str.substr(strPos, toksz), pos, strPos, start });
-                            strPos += toksz;
-                            start = false;
+                        auto& ch = str[strPos + toksz];
+                        if (is_numeric(ch)) {
+                            tokenizeNumber(str, strPos, sz, toksz, start, TOKEN_TYPE::OCTNUM, is_octal, tokens, pos);
                             break;
                         }
                     }
-                    tokenizeNumber(str, strPos, sz, toksz, start, TOKEN_TYPE::OCTNUM, is_octal, tokens, pos);
+                    handle_pair(str, strPos, sz, ch, TOKEN_TYPE::BIT_AND, TOKEN_TYPE::LOGICAL_AND, tokens, pos, start);
                     break;
                 }
 
