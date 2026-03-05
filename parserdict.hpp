@@ -31,7 +31,6 @@ std::map<int64_t, std::string> parserDict = {
     { RPAREN,       "RIGHT_PAREN"},
     { ONESCOMP,     "ONES_COMP"},
     { AT,           "AT" },
-    { WS,           "WHITE_SPACE" },
     { SYM,          "SYM" },
     { LOCALSYM,     "LOCAL_SYM" },
     { COMMENT,      "COMMENT" },

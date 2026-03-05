@@ -329,6 +329,12 @@ std::vector<Token> tokenize(const std::vector<std::pair<SourcePos, std::string_v
                     break;
                 }
 
+                case ':':
+                {
+                    handle_single(str, strPos, sz, TOKEN_TYPE::COLAN, tokens, pos, start);
+                    break;
+                }
+
                 case '+':
                 {
                     handle_single(str, strPos, sz, TOKEN_TYPE::PLUS, tokens, pos, start);
@@ -350,6 +356,30 @@ std::vector<Token> tokenize(const std::vector<std::pair<SourcePos, std::string_v
                 case '/':
                 {
                     handle_single(str, strPos, sz, TOKEN_TYPE::DIV, tokens, pos, start);
+                    break;
+                }
+
+                case ',':
+                {
+                    handle_single(str, strPos, sz, TOKEN_TYPE::COMMA, tokens, pos, start);
+                    break;
+                }
+
+                case '#':
+                {
+                    handle_single(str, strPos, sz, TOKEN_TYPE::POUND, tokens, pos, start);
+                    break;
+                }
+
+                case '~':
+                {
+                    handle_single(str, strPos, sz, TOKEN_TYPE::ONESCOMP, tokens, pos, start);
+                    break;
+                }
+
+                case '@':
+                {
+                    handle_single(str, strPos, sz, TOKEN_TYPE::AT, tokens, pos, start);
                     break;
                 }
 
@@ -383,12 +413,18 @@ std::vector<Token> tokenize(const std::vector<std::pair<SourcePos, std::string_v
                     break;
                 }
 
+                case '=':
+                {
+                    handle_pair(str, strPos, sz, ch, TOKEN_TYPE::EQUAL, TOKEN_TYPE::DEQUAL, tokens, pos, start);
+                    break;
+                }
+
                 case '&':
                 {
                     if (strPos + 1 < sz) {
                         toksz = 1;
                         auto& ch2 = str[strPos + toksz];
-                        if (is_numeric(ch2)) {
+                        if (is_octal(ch2)) {
                             tokenizeNumber(str, strPos, sz, toksz, start, TOKEN_TYPE::OCTNUM, is_octal, tokens, pos);
                             break;
                         }
