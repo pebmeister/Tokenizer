@@ -1,14 +1,12 @@
-#include <fstream>
+#pragma once
+// written by Paul Baxter
+
 #include <format>
 #include <iostream>
 #include <string>
 #include <stdio.h>
-
-#include "RegexEngine.h"
-
-
-#include <iostream>
 #include <fstream>
+
 #include "RegexEngine.h"
 
 int main() {
