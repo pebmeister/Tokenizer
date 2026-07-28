@@ -1,0 +1,607 @@
+#pragma once
+#include <iostream>
+#include <vector>
+#include <string>
+#include <memory>
+#include <set>
+#include <map>
+#include <stdexcept>
+#include <cctype>
+#include <algorithm>
+#include <sstream>
+
+// ==============================================================
+// 1. DATA STRUCTURES & NFA BUILDER
+// ==============================================================
+
+struct CharRange {
+    unsigned char low;
+    unsigned char high;
+};
+
+struct NFAState {
+    int id;
+    bool is_accept = false;
+    int token_id = 0;
+    std::vector<NFAState*> epsilon_transitions;
+    struct Transition {
+        std::vector<CharRange> ranges;
+        NFAState* target;
+    };
+    std::vector<Transition> transitions;
+};
+
+struct NFAFragment {
+    NFAState* start = nullptr;
+    NFAState* end = nullptr;
+};
+
+class NFABuilder {
+private:
+    std::vector<std::unique_ptr<NFAState>> all_states_;
+    int next_id_ = 0;
+    bool case_insensitive_ = false;
+
+    std::vector<CharRange> applyCaseInsensitivity(const std::vector<CharRange>& input_ranges) {
+        if (!case_insensitive_) return input_ranges;
+        std::set<unsigned char> bytes;
+        for (const auto& r : input_ranges) {
+            for (int ch = r.low; ch <= r.high; ++ch) {
+                unsigned char b = static_cast<unsigned char>(ch);
+                bytes.insert(b);
+                if (std::isalpha(b)) {
+                    bytes.insert(static_cast<unsigned char>(std::tolower(b)));
+                    bytes.insert(static_cast<unsigned char>(std::toupper(b)));
+                }
+            }
+        }
+        std::vector<CharRange> result;
+        if (bytes.empty()) return result;
+        auto it = bytes.begin();
+        unsigned char range_start = *it, prev = *it;
+        it++;
+        for (; it != bytes.end(); ++it) {
+            if (*it == prev + 1) prev = *it;
+            else {
+                result.push_back({ range_start, prev });
+                range_start = *it; prev = *it;
+            }
+        }
+        result.push_back({ range_start, prev });
+        return result;
+    }
+
+public:
+    NFAState* createState() {
+        auto state = std::make_unique<NFAState>();
+        state->id = next_id_++;
+        NFAState* ptr = state.get();
+        all_states_.push_back(std::move(state));
+        return ptr;
+    }
+
+    NFAFragment makeRange(const std::vector<CharRange>& ranges, bool apply_case = true) {
+        NFAState* start = createState();
+        NFAState* end = createState();
+        std::vector<CharRange> final_ranges = apply_case ? applyCaseInsensitivity(ranges) : ranges;
+        start->transitions.push_back({ final_ranges, end });
+        return { start, end };
+    }
+
+    NFAFragment makeConcat(const NFAFragment& first, const NFAFragment& second) {
+        first.end->epsilon_transitions.push_back(second.start);
+        return { first.start, second.end };
+    }
+
+    NFAFragment makeOr(const NFAFragment& first, const NFAFragment& second) {
+        NFAState* start = createState();
+        NFAState* end = createState();
+        start->epsilon_transitions.push_back(first.start);
+        start->epsilon_transitions.push_back(second.start);
+        first.end->epsilon_transitions.push_back(end);
+        second.end->epsilon_transitions.push_back(end);
+        return { start, end };
+    }
+
+    NFAFragment makeStar(const NFAFragment& frag) {
+        NFAState* start = createState();
+        NFAState* end = createState();
+        start->epsilon_transitions.push_back(frag.start);
+        start->epsilon_transitions.push_back(end);
+        frag.end->epsilon_transitions.push_back(frag.start);
+        frag.end->epsilon_transitions.push_back(end);
+        return { start, end };
+    }
+
+    NFAFragment makePlus(const NFAFragment& frag) {
+        NFAState* start = createState();
+        NFAState* end = createState();
+        start->epsilon_transitions.push_back(frag.start);
+        frag.end->epsilon_transitions.push_back(frag.start);
+        frag.end->epsilon_transitions.push_back(end);
+        return { start, end };
+    }
+
+    NFAFragment makeOptional(const NFAFragment& frag) {
+        NFAState* start = createState();
+        NFAState* end = createState();
+        start->epsilon_transitions.push_back(frag.start);
+        start->epsilon_transitions.push_back(end);
+        frag.end->epsilon_transitions.push_back(end);
+        return { start, end };
+    }
+
+    NFAFragment buildFromRegex(const std::string& pattern, bool case_insensitive = false) {
+        case_insensitive_ = case_insensitive;
+        size_t pos = 0;
+        NFAFragment frag = parseExpression(pattern, pos);
+        if (pos < pattern.size()) throw std::runtime_error("Unexpected trailing char");
+        return frag;
+    }
+
+private:
+    NFAFragment parseExpression(const std::string& pat, size_t& pos) {
+        NFAFragment left = parseConcat(pat, pos);
+        while (pos < pat.size() && pat[pos] == '|') {
+            pos++;
+            left = makeOr(left, parseConcat(pat, pos));
+        }
+        return left;
+    }
+
+    NFAFragment parseConcat(const std::string& pat, size_t& pos) {
+        std::vector<NFAFragment> terms;
+        while (pos < pat.size() && pat[pos] != '|' && pat[pos] != ')') {
+            terms.push_back(parseQuantifiedAtom(pat, pos));
+        }
+        if (terms.empty()) {
+            NFAState* s = createState(); NFAState* e = createState();
+            s->epsilon_transitions.push_back(e);
+            return { s, e };
+        }
+        NFAFragment res = terms[0];
+        for (size_t i = 1; i < terms.size(); ++i) res = makeConcat(res, terms[i]);
+        return res;
+    }
+
+    NFAFragment parseQuantifiedAtom(const std::string& pat, size_t& pos) {
+        size_t atom_start = pos;
+        NFAFragment frag = parseAtom(pat, pos);
+        if (pos >= pat.size()) return frag;
+        char c = pat[pos];
+        if (c == '*') { pos++; return makeStar(frag); }
+        if (c == '+') { pos++; return makePlus(frag); }
+        if (c == '?') { pos++; return makeOptional(frag); }
+        if (c == '{') {
+            pos++;
+            size_t close = pat.find('}', pos);
+            std::string r_str = pat.substr(pos, close - pos);
+            pos = close + 1;
+            int min_rep = 0, max_rep = 0;
+            size_t comma = r_str.find(',');
+            if (comma == std::string::npos) min_rep = max_rep = std::stoi(r_str);
+            else {
+                min_rep = std::stoi(r_str.substr(0, comma));
+                std::string max_s = r_str.substr(comma + 1);
+                max_rep = max_s.empty() ? -1 : std::stoi(max_s);
+            }
+            std::vector<NFAFragment> chain;
+            for (int i = 0; i < min_rep; ++i) { size_t p = atom_start; chain.push_back(parseAtom(pat, p)); }
+            if (max_rep == -1) { size_t p = atom_start; chain.push_back(makeStar(parseAtom(pat, p))); }
+            else {
+                for (int i = min_rep; i < max_rep; ++i) { size_t p = atom_start; chain.push_back(makeOptional(parseAtom(pat, p))); }
+            }
+            if (chain.empty()) {
+                NFAState* s = createState(); NFAState* e = createState();
+                s->epsilon_transitions.push_back(e);
+                return { s, e };
+            }
+            NFAFragment res = chain[0];
+            for (size_t i = 1; i < chain.size(); ++i) res = makeConcat(res, chain[i]);
+            return res;
+        }
+        return frag;
+    }
+
+    NFAFragment parseAtom(const std::string& pat, size_t& pos) {
+        char c = pat[pos];
+        if (c == '(') {
+            pos++;
+            NFAFragment inner = parseExpression(pat, pos);
+            pos++; // consume ')'
+            return inner;
+        }
+        if (c == '[') return parseCharacterClass(pat, pos);
+        if (c == '\\') {
+            pos++; char e = pat[pos++];
+            if (e == 'd') return makeRange({ {'0', '9'} });
+            if (e == 'w') return makeRange({ {'a', 'z'}, {'A', 'Z'}, {'0', '9'}, {'_', '_'} });
+            if (e == 's') return makeRange({ {' ', ' '}, {'\t', '\t'}, {'\r', '\r'}, {'\n', '\n'} });
+            char r = e;
+            if (e == 'n') r = '\n'; else if (e == 'r') r = '\r'; else if (e == 't') r = '\t';
+            return makeRange({ {static_cast<unsigned char>(r), static_cast<unsigned char>(r)} });
+        }
+        pos++;
+        return makeRange({ {static_cast<unsigned char>(c), static_cast<unsigned char>(c)} });
+    }
+
+    NFAFragment parseCharacterClass(const std::string& pat, size_t& pos) {
+        pos++; bool negated = false;
+        if (pos < pat.size() && pat[pos] == '^') { negated = true; pos++; }
+        std::set<unsigned char> inc;
+        while (pos < pat.size() && pat[pos] != ']') {
+            unsigned char s_c = pat[pos++];
+            if (s_c == '\\') s_c = pat[pos++];
+            if (pos + 1 < pat.size() && pat[pos] == '-' && pat[pos + 1] != ']') {
+                pos++;
+                unsigned char e_c = pat[pos++];
+                if (e_c == '\\') e_c = pat[pos++];
+                for (int ch = s_c; ch <= e_c; ++ch) inc.insert(static_cast<unsigned char>(ch));
+            } else inc.insert(s_c);
+        }
+        pos++; // consume ']'
+        
+        if (case_insensitive_) {
+            std::set<unsigned char> exp;
+            for (unsigned char ch : inc) {
+                exp.insert(ch);
+                if (std::isalpha(ch)) { exp.insert(std::tolower(ch)); exp.insert(std::toupper(ch)); }
+            }
+            inc = std::move(exp);
+        }
+        if (negated) {
+            std::set<unsigned char> inv;
+            for (int ch = 0; ch < 256; ++ch) {
+                if (inc.find(ch) == inc.end()) inv.insert(ch);
+            }
+            inc = std::move(inv);
+        }
+        std::vector<CharRange> ranges;
+        if (!inc.empty()) {
+            auto it = inc.begin(); unsigned char rs = *it, prev = *it; it++;
+            for (; it != inc.end(); ++it) {
+                if (*it == prev + 1) prev = *it;
+                else { ranges.push_back({ rs, prev }); rs = *it; prev = *it; }
+            }
+            ranges.push_back({ rs, prev });
+        }
+        return makeRange(ranges, false);
+    }
+};
+
+// ==============================================================
+// 2. DFA CONVERSION
+// ==============================================================
+
+struct DFAState {
+    int id;
+    bool is_accept = false;
+    int token_id = 0;
+    std::map<unsigned char, int> transitions;
+};
+
+class DFAConverter {
+private:
+    std::vector<std::unique_ptr<DFAState>> dfa_states_;
+    
+    std::set<NFAState*> epsilonClosure(const std::set<NFAState*>& states) {
+        std::set<NFAState*> closure = states;
+        std::vector<NFAState*> stack(states.begin(), states.end());
+        while (!stack.empty()) {
+            NFAState* s = stack.back(); stack.pop_back();
+            for (NFAState* next : s->epsilon_transitions) {
+                if (closure.insert(next).second) stack.push_back(next);
+            }
+        }
+        return closure;
+    }
+
+public:
+    std::vector<DFAState*> convertNFA(NFAState* master_start) {
+        dfa_states_.clear();
+        
+        auto dead_state = std::make_unique<DFAState>();
+        dead_state->id = 0;
+        dfa_states_.push_back(std::move(dead_state));
+
+        std::map<std::set<NFAState*>, int> dfa_map;
+        std::vector<std::set<NFAState*>> worklist;
+
+        std::set<NFAState*> start_closure = epsilonClosure({master_start});
+        auto root = std::make_unique<DFAState>();
+        root->id = 1;
+        dfa_map[start_closure] = 1;
+        worklist.push_back(start_closure);
+        dfa_states_.push_back(std::move(root));
+
+        while (!worklist.empty()) {
+            std::set<NFAState*> current_nfa_set = worklist.back();
+            worklist.pop_back();
+            int current_dfa_id = dfa_map[current_nfa_set];
+
+            for (NFAState* nfa_s : current_nfa_set) {
+                if (nfa_s->is_accept) {
+                    if (!dfa_states_[current_dfa_id]->is_accept || nfa_s->token_id < dfa_states_[current_dfa_id]->token_id) {
+                        dfa_states_[current_dfa_id]->is_accept = true;
+                        dfa_states_[current_dfa_id]->token_id = nfa_s->token_id;
+                    }
+                }
+            }
+
+            for (int byte_val = 0; byte_val < 256; ++byte_val) {
+                std::set<NFAState*> move_set;
+                for (NFAState* nfa_s : current_nfa_set) {
+                    for (const auto& transition : nfa_s->transitions) {
+                        bool matches = false;
+                        for (const auto& range : transition.ranges) {
+                            if (byte_val >= range.low && byte_val <= range.high) { matches = true; break; }
+                        }
+                        if (matches) move_set.insert(transition.target);
+                    }
+                }
+
+                if (move_set.empty()) continue;
+
+                std::set<NFAState*> target_closure = epsilonClosure(move_set);
+                if (dfa_map.find(target_closure) == dfa_map.end()) {
+                    int new_id = dfa_states_.size();
+                    dfa_map[target_closure] = new_id;
+                    auto new_dfa = std::make_unique<DFAState>();
+                    new_dfa->id = new_id;
+                    dfa_states_.push_back(std::move(new_dfa));
+                    worklist.push_back(target_closure);
+                }
+                dfa_states_[current_dfa_id]->transitions[byte_val] = dfa_map[target_closure];
+            }
+        }
+        std::vector<DFAState*> result;
+        for (const auto& s : dfa_states_) result.push_back(s.get());
+        return result;
+    }
+};
+
+// ==============================================================
+// 3. EQUIVALENCE CLASSES & HOPCROFT MINIMIZATION
+// ==============================================================
+
+struct EquivalenceClassResult {
+    int byte_to_class[256];
+    int num_classes;
+    std::vector<std::vector<int>> compressed_transitions;
+};
+
+inline EquivalenceClassResult computeClasses(const std::vector<DFAState*>& dfa) {
+    EquivalenceClassResult res;
+    std::vector<std::vector<int>> partition(dfa.size(), std::vector<int>(256, 0));
+    
+    for (size_t s = 0; s < dfa.size(); ++s) {
+        for (const auto& [byte_val, target] : dfa[s]->transitions) {
+            partition[s][byte_val] = target;
+        }
+    }
+
+    std::map<std::vector<int>, int> class_map;
+    int next_class_id = 0;
+
+    for (int b = 0; b < 256; ++b) {
+        std::vector<int> behavior(dfa.size());
+        for (size_t s = 0; s < dfa.size(); ++s) behavior[s] = partition[s][b];
+        if (class_map.find(behavior) == class_map.end()) class_map[behavior] = next_class_id++;
+        res.byte_to_class[b] = class_map[behavior];
+    }
+    res.num_classes = next_class_id;
+    res.compressed_transitions.assign(dfa.size(), std::vector<int>(res.num_classes, 0));
+    
+    for (int b = 0; b < 256; ++b) {
+        int cls = res.byte_to_class[b];
+        for (size_t s = 0; s < dfa.size(); ++s) res.compressed_transitions[s][cls] = partition[s][b];
+    }
+    return res;
+}
+
+inline std::vector<std::unique_ptr<DFAState>> minimizeDFA(const std::vector<DFAState*>& states, const EquivalenceClassResult& eq) {
+    if (states.size() <= 2) {
+        std::vector<std::unique_ptr<DFAState>> copy;
+        for (const auto* s : states) { auto n = std::make_unique<DFAState>(); *n = *s; copy.push_back(std::move(n)); }
+        return copy;
+    }
+
+    int num_states = states.size();
+    std::map<std::pair<bool, int>, std::set<int>> initial_groups;
+    for (int i = 1; i < num_states; ++i) initial_groups[{states[i]->is_accept, states[i]->token_id}].insert(i);
+
+    std::vector<std::set<int>> partitions = {{0}};
+    for (auto& [key, group] : initial_groups) partitions.push_back(group);
+
+    std::vector<int> s_to_p(num_states, 0);
+    auto updateMap = [&]() {
+        for (size_t p = 0; p < partitions.size(); ++p) {
+            for (int s : partitions[p]) s_to_p[s] = p;
+        }
+    };
+    updateMap();
+
+    std::vector<int> worklist;
+    for (size_t p = 1; p < partitions.size(); ++p) worklist.push_back(p);
+
+    while (!worklist.empty()) {
+        int act_idx = worklist.back(); worklist.pop_back();
+        // Fixed: COPY active_set so vector reallocations in partitions don't invalidate references
+        std::set<int> active_set = partitions[act_idx];
+
+        for (int cls = 0; cls < eq.num_classes; ++cls) {
+            std::set<int> preds;
+            for (int s = 0; s < num_states; ++s) {
+                if (active_set.count(eq.compressed_transitions[s][cls])) preds.insert(s);
+            }
+            if (preds.empty()) continue;
+
+            size_t num_p = partitions.size();
+            for (size_t p = 0; p < num_p; ++p) {
+                std::set<int> inters, diff;
+                for (int s : partitions[p]) {
+                    if (preds.count(s)) inters.insert(s); else diff.insert(s);
+                }
+                if (!inters.empty() && !diff.empty()) {
+                    partitions[p] = inters;
+                    partitions.push_back(diff);
+                    int new_p = partitions.size() - 1;
+                    updateMap();
+                    auto wl_it = std::find(worklist.begin(), worklist.end(), p);
+                    if (wl_it != worklist.end()) worklist.push_back(new_p);
+                    else {
+                        if (inters.size() <= diff.size()) worklist.push_back(p);
+                        else worklist.push_back(new_p);
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<int> p_to_new(partitions.size(), -1);
+    p_to_new[0] = 0; p_to_new[s_to_p[1]] = 1;
+    int next_id = 2;
+    for (size_t p = 0; p < partitions.size(); ++p) {
+        if (p_to_new[p] == -1) p_to_new[p] = next_id++;
+    }
+
+    std::vector<std::unique_ptr<DFAState>> min_dfa(partitions.size());
+    for (size_t p = 0; p < partitions.size(); ++p) {
+        int n_id = p_to_new[p];
+        int old_s = *partitions[p].begin();
+        auto n_state = std::make_unique<DFAState>();
+        n_state->id = n_id;
+        n_state->is_accept = states[old_s]->is_accept;
+        n_state->token_id = states[old_s]->token_id;
+
+        for (auto& [b_val, o_targ] : states[old_s]->transitions) {
+            int t_new = p_to_new[s_to_p[o_targ]];
+            if (t_new != 0) n_state->transitions[b_val] = t_new;
+        }
+        min_dfa[n_id] = std::move(n_state);
+    }
+    return min_dfa;
+}
+
+// ==============================================================
+// 4. CODE GENERATOR & FACADE
+// ==============================================================
+
+class RegexCompiler {
+private:
+    struct Rule { std::string pattern; int id; bool case_insensitive; };
+    std::vector<Rule> rules;
+
+
+public:
+	struct RuleSpec {
+		std::string pattern;
+		int token_id;
+		bool case_insensitive = false;
+	};
+
+    void addRule(const std::string& pattern, int token_id, bool case_insensitive = false) {
+        rules.push_back({pattern, token_id, case_insensitive});
+    }
+
+	void addRules(std::initializer_list<RuleSpec> rule_list) {
+		for (const auto& rule : rule_list) {
+			addRule(rule.pattern, rule.token_id, rule.case_insensitive);
+		}
+	}
+    std::string generateCppClass(const std::string& class_name = "Tokenizer") {
+        NFABuilder builder;
+        NFAState* master = builder.createState();
+        for (const auto& r : rules) {
+            NFAFragment frag = builder.buildFromRegex(r.pattern, r.case_insensitive);
+            frag.end->is_accept = true;
+            frag.end->token_id = r.id;
+            master->epsilon_transitions.push_back(frag.start);
+        }
+
+        DFAConverter converter;
+        std::vector<DFAState*> raw = converter.convertNFA(master);
+        EquivalenceClassResult eq = computeClasses(raw);
+        auto min_owners = minimizeDFA(raw, eq);
+        std::vector<DFAState*> min_dfa;
+        for(auto& s : min_owners) min_dfa.push_back(s.get());
+
+        std::stringstream ss;
+        ss << "/**\n * Auto-Generated Tokenizer Class\n * Powered by Thompson NFA + Powerset DFA + Hopcroft Minimization\n */\n";
+        ss << "#pragma once\n#include <string>\n#include <vector>\n\n";
+        ss << "class " << class_name << " {\n";
+        ss << "private:\n";
+
+        ss << "    static inline constexpr int byte_to_class[256] = {\n        ";
+        for (int i = 0; i < 256; ++i) {
+            ss << eq.byte_to_class[i] << (i < 255 ? ", " : "");
+            if ((i + 1) % 16 == 0 && i < 255) ss << "\n        ";
+        }
+        ss << "\n    };\n\n";
+
+        int num_states = min_dfa.size();
+        ss << "    static inline constexpr int transition_table[" << num_states << "][" << eq.num_classes << "] = {\n";
+        for (int s = 0; s < num_states; ++s) {
+            ss << "        {";
+            for (int c = 0; c < eq.num_classes; ++c) {
+                int target = 0;
+                for (int b = 0; b < 256; ++b) {
+                    if (eq.byte_to_class[b] == c) {
+                        if (min_dfa[s]->transitions.count(b)) target = min_dfa[s]->transitions[b];
+                        break;
+                    }
+                }
+                ss << target << (c < eq.num_classes - 1 ? ", " : "");
+            }
+            ss << "}" << (s < num_states - 1 ? ",\n" : "\n");
+        }
+        ss << "    };\n\n";
+
+        ss << "    static inline constexpr int accept_table[" << num_states << "] = {\n        ";
+        for (int s = 0; s < num_states; ++s) {
+            ss << (min_dfa[s]->is_accept ? min_dfa[s]->token_id : 0) << (s < num_states - 1 ? ", " : "");
+            if ((s + 1) % 16 == 0 && s < num_states - 1) ss << "\n        ";
+        }
+        ss << "\n    };\n\n";
+
+        ss << "public:\n";
+        ss << "    struct Token {\n";
+        ss << "        int id;\n";
+        ss << "        std::string lexeme;\n";
+        ss << "        size_t position;\n";
+        ss << "    };\n\n";
+
+        ss << "    static std::vector<Token> tokenize(const std::string& input) {\n";
+        ss << "        std::vector<Token> tokens;\n";
+        ss << "        size_t pos = 0;\n";
+        ss << "        while (pos < input.size()) {\n";
+        ss << "            size_t start_pos = pos;\n";
+        ss << "            int current_state = 1;\n";
+        ss << "            int last_accept_state = 0;\n";
+        ss << "            size_t last_accept_pos = start_pos;\n\n";
+        ss << "            while (pos < input.size()) {\n";
+        ss << "                unsigned char byte = static_cast<unsigned char>(input[pos]);\n";
+        ss << "                current_state = transition_table[current_state][byte_to_class[byte]];\n";
+        ss << "                if (current_state == 0) break;\n";
+        ss << "                pos++;\n";
+        ss << "                if (accept_table[current_state] > 0) {\n";
+        ss << "                    last_accept_state = current_state;\n";
+        ss << "                    last_accept_pos = pos;\n";
+        ss << "                }\n";
+        ss << "            }\n\n";
+        ss << "            if (last_accept_state > 0) {\n";
+        ss << "                tokens.push_back({accept_table[last_accept_state], input.substr(start_pos, last_accept_pos - start_pos), start_pos});\n";
+        ss << "                pos = last_accept_pos;\n";
+        ss << "            } else {\n";
+        ss << "                // Fallback for unmatched character\n";
+        ss << "                tokens.push_back({-1, input.substr(start_pos, 1), start_pos});\n";
+        ss << "                pos = start_pos + 1;\n";
+        ss << "            }\n";
+        ss << "        }\n";
+        ss << "        return tokens;\n";
+        ss << "    }\n";
+        ss << "};\n";
+
+        return ss.str();
+    }
+};
