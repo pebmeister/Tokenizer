@@ -1,4 +1,6 @@
 #pragma once
+// written by Paul Baxter
+
 #include <iostream>
 #include <vector>
 #include <string>
