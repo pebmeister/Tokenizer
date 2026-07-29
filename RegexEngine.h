@@ -245,7 +245,7 @@ private:
 
 		if (pat.size() == 10) {
 			auto pattern = pat;
-			std::cout << "parseExpression  ";
+			std::cout << "parseAtom  ";
 			std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
 			for (char c : pattern) {
     			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
@@ -304,6 +304,7 @@ private:
 			        {static_cast<unsigned char>(' '+1), static_cast<unsigned char>(255)}
 			});
 
+			std::cout << "parseAtom  ";
 			std::cout << "got escaped " << e << "\n";
 			
 			char r = e;
