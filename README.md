@@ -115,15 +115,6 @@ Requirements
  * Header Dependencies: <iostream>, <vector>, <string>, <memory>, <set>, <map>, <stdexcept>, <cctype>, <algorithm>, <sstream>.
 License
 This source code is provided as-is. Feel free to use and modify it in your own projects.
-"""
-file_path = "README.md"
-with open(file_path, "w", encoding="utf-8") as f:
-f.write(readme_content)
-print(f"File saved successfully as {file_path}")
-
-```text?code_stdout&code_event_index=1
-File saved successfully as README.md
-
 
 README Summary
 The README.md file includes:
