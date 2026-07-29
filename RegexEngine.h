@@ -12,6 +12,7 @@
 #include <cctype>
 #include <algorithm>
 #include <sstream>
+#include <initializer_list>
 
 // ==============================================================
 // 1. DATA STRUCTURES & NFA BUILDER
@@ -289,88 +290,90 @@ private:
 		pos++;
 		return makeRange({ {static_cast<unsigned char>(c), static_cast<unsigned char>(c)} });
 	}
-char parseClassChar(const std::string& pattern, size_t& pos) {
-    char c = pattern[pos++];
-    if (c == '\\' && pos < pattern.length()) {
-        char escaped = pattern[pos++];
-        switch (escaped) {
-            case 'n': return '\n';
-            case 'r': return '\r';
-            case 't': return '\t';
-            case '0': return '\0';
-            default:  return escaped; // Handles '\]', '\-', '\\', etc.
-        }
-    }
-    return c;
-}
 
-NFAFragment parseCharacterClass(const std::string& pat, size_t& pos) {
-    pos++;
-    bool negated = false;
-    if (pos < pat.size() && pat[pos] == '^') {
-        negated = true;
+    char parseClassChar(const std::string& pattern, size_t& pos) {
+        char c = pattern[pos++];
+        if (c == '\\' && pos < pattern.length()) {
+            char escaped = pattern[pos++];
+            switch (escaped) {
+                case 'n': return '\n';
+                case 'r': return '\r';
+                case 't': return '\t';
+                case '0': return '\0';
+                default:  return escaped; // Handles '\]', '\-', '\\', etc.
+            }
+        }
+        return c;
+    }
+
+    NFAFragment parseCharacterClass(const std::string& pat, size_t& pos) {
         pos++;
-    }
-    
-    std::set<unsigned char> inc;
-    
-    while (pos < pat.size() && pat[pos] != ']') {
-        // 1. Read the start char, translating \n, \t, etc. automatically
-        unsigned char s_c = parseClassChar(pat, pos);
+        bool negated = false;
+        if (pos < pat.size() && pat[pos] == '^') {
+            negated = true;
+            pos++;
+        }
         
-        // 2. Check for a range indicator (e.g., a-z)
-        if (pos + 1 < pat.size() && pat[pos] == '-' && pat[pos + 1] != ']') {
-            pos++; // consume the '-'
+        std::set<unsigned char> inc;
+        
+        while (pos < pat.size() && pat[pos] != ']') {
+            // 1. Read the start char, translating \n, \t, etc. automatically
+            unsigned char s_c = parseClassChar(pat, pos);
             
-            // 3. Read the end char, translating escapes here too
-            unsigned char e_c = parseClassChar(pat, pos);
-            
-            for (int ch = s_c; ch <= e_c; ++ch) {
-                inc.insert(static_cast<unsigned char>(ch));
+            // 2. Check for a range indicator (e.g., a-z)
+            if (pos + 1 < pat.size() && pat[pos] == '-' && pat[pos + 1] != ']') {
+                pos++; // consume the '-'
+                
+                // 3. Read the end char, translating escapes here too
+                unsigned char e_c = parseClassChar(pat, pos);
+                
+                for (int ch = s_c; ch <= e_c; ++ch) {
+                    inc.insert(static_cast<unsigned char>(ch));
+                }
+            } else {
+                inc.insert(s_c);
             }
-        } else {
-            inc.insert(s_c);
         }
-    }
-    pos++; // consume ']'
+        pos++; // consume ']'
 
-    if (case_insensitive_) {
-        std::set<unsigned char> exp;
-        for (unsigned char ch : inc) {
-            exp.insert(ch);
-            if (std::isalpha(ch)) {
-                exp.insert(std::tolower(ch));
-                exp.insert(std::toupper(ch));
+        if (case_insensitive_) {
+            std::set<unsigned char> exp;
+            for (unsigned char ch : inc) {
+                exp.insert(ch);
+                if (std::isalpha(ch)) {
+                    exp.insert(std::tolower(ch));
+                    exp.insert(std::toupper(ch));
+                }
             }
+            inc = std::move(exp);
         }
-        inc = std::move(exp);
-    }
-    
-    if (negated) {
-        std::set<unsigned char> inv;
-        for (int ch = 0; ch < 256; ++ch) {
-            if (inc.find(ch) == inc.end()) inv.insert(ch);
-        }
-        inc = std::move(inv);
-    }
-    
-    std::vector<CharRange> ranges;
-    if (!inc.empty()) {
-        auto it = inc.begin();
-        unsigned char rs = *it, prev = *it;
-        it++;
-        for (; it != inc.end(); ++it) {
-            if (*it == prev + 1) prev = *it;
-            else {
-                ranges.push_back({ rs, prev });
-                rs = *it;
-                prev = *it;
+        
+        if (negated) {
+            std::set<unsigned char> inv;
+            for (int ch = 0; ch < 256; ++ch) {
+                if (inc.find(ch) == inc.end()) inv.insert(ch);
             }
+            inc = std::move(inv);
         }
-        ranges.push_back({ rs, prev });
+        
+        std::vector<CharRange> ranges;
+        if (!inc.empty()) {
+            auto it = inc.begin();
+            unsigned char rs = *it, prev = *it;
+            it++;
+            for (; it != inc.end(); ++it) {
+                if (*it == prev + 1) prev = *it;
+                else {
+                    ranges.push_back({ rs, prev });
+                    rs = *it;
+                    prev = *it;
+                }
+            }
+            ranges.push_back({ rs, prev });
+        }
+        return makeRange(ranges, false);
     }
-    return makeRange(ranges, false);
-}
+}; // <-- THIS BRACE WAS MISSING
 
 // ==============================================================
 // 2. DFA CONVERSION
