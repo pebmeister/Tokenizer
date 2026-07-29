@@ -7,6 +7,7 @@
 #include <memory>
 #include <set>
 #include <map>
+#include <tuple>
 #include <stdexcept>
 #include <cctype>
 #include <algorithm>
@@ -25,6 +26,8 @@ struct NFAState {
 	int id;
 	bool is_accept = false;
 	int token_id = 0;
+	bool anchor_bol = false; // Requires column 1 / start of line
+	bool anchor_eol = false; // Requires end of line / EOF
 	std::vector<NFAState*> epsilon_transitions;
 	struct Transition {
 		std::vector<CharRange> ranges;
@@ -235,6 +238,25 @@ private:
 			return inner;
 		}
 		if (c == '[') return parseCharacterClass(pat, pos);
+		
+		// Fixed: dot handling with pos++ and clean range syntax
+		if (c == '.') {
+			pos++;
+			return makeRange({
+				{0, static_cast<unsigned char>('\n' - 1)},
+				{static_cast<unsigned char>('\n' + 1), 255}
+			}, false);
+		}
+
+		if (c == '^') {
+			pos++;
+			return makeRange({ {'^', '^'} });
+		}
+		if (c == '$') {
+			pos++;
+			return makeRange({ {'$', '$'} });
+		}
+
 		if (c == '\\') {
 			pos++;
 			char e = pat[pos++];
@@ -316,6 +338,8 @@ struct DFAState {
 	int id;
 	bool is_accept = false;
 	int token_id = 0;
+	bool anchor_bol = false;
+	bool anchor_eol = false;
 	std::map<unsigned char, int> transitions;
 };
 
@@ -364,6 +388,8 @@ public:
 					if (!dfa_states_[current_dfa_id]->is_accept || nfa_s->token_id < dfa_states_[current_dfa_id]->token_id) {
 						dfa_states_[current_dfa_id]->is_accept = true;
 						dfa_states_[current_dfa_id]->token_id = nfa_s->token_id;
+						dfa_states_[current_dfa_id]->anchor_bol = nfa_s->anchor_bol;
+						dfa_states_[current_dfa_id]->anchor_eol = nfa_s->anchor_eol;
 					}
 				}
 			}
@@ -454,8 +480,15 @@ inline std::vector<std::unique_ptr<DFAState>> minimizeDFA(const std::vector<DFAS
 	}
 
 	int num_states = states.size();
-	std::map<std::pair<bool, int>, std::set<int>> initial_groups;
-	for (int i = 1; i < num_states; ++i) initial_groups[ {states[i]->is_accept, states[i]->token_id}].insert(i);
+	std::map<std::tuple<bool, int, bool, bool>, std::set<int>> initial_groups;
+	for (int i = 1; i < num_states; ++i) {
+		initial_groups[{
+			states[i]->is_accept,
+			states[i]->token_id,
+			states[i]->anchor_bol,
+			states[i]->anchor_eol
+		}].insert(i);
+	}
 
 	std::vector<std::set<int>> partitions = {{0}};
 	for (auto& [key, group] : initial_groups) partitions.push_back(group);
@@ -474,7 +507,6 @@ inline std::vector<std::unique_ptr<DFAState>> minimizeDFA(const std::vector<DFAS
 	while (!worklist.empty()) {
 		int act_idx = worklist.back();
 		worklist.pop_back();
-		// Fixed: COPY active_set so vector reallocations in partitions don't invalidate references
 		std::set<int> active_set = partitions[act_idx];
 
 		for (int cls = 0; cls < eq.num_classes; ++cls) {
@@ -523,6 +555,8 @@ inline std::vector<std::unique_ptr<DFAState>> minimizeDFA(const std::vector<DFAS
 		n_state->id = n_id;
 		n_state->is_accept = states[old_s]->is_accept;
 		n_state->token_id = states[old_s]->token_id;
+		n_state->anchor_bol = states[old_s]->anchor_bol;
+		n_state->anchor_eol = states[old_s]->anchor_eol;
 
 		for (auto& [b_val, o_targ] : states[old_s]->transitions) {
 			int t_new = p_to_new[s_to_p[o_targ]];
@@ -543,33 +577,54 @@ private:
 		std::string pattern;
 		int id;
 		bool case_insensitive;
+		bool anchor_bol = false;
+		bool anchor_eol = false;
 	};
 	std::vector<Rule> rules;
-
 
 public:
 	struct RuleSpec {
 		std::string pattern;
 		int token_id;
 		bool case_insensitive = false;
+		bool anchor_bol = false;
+		bool anchor_eol = false;
 	};
 
-	void addRule(const std::string& pattern, int token_id, bool case_insensitive = false) {
-		rules.push_back({pattern, token_id, case_insensitive});
+	void addRule(const std::string& pattern, int token_id, bool case_insensitive = false, bool anchor_bol = false, bool anchor_eol = false) {
+		rules.push_back({pattern, token_id, case_insensitive, anchor_bol, anchor_eol});
 	}
 
 	void addRules(std::initializer_list<RuleSpec> rule_list) {
 		for (const auto& rule : rule_list) {
-			addRule(rule.pattern, rule.token_id, rule.case_insensitive);
+			addRule(rule.pattern, rule.token_id, rule.case_insensitive, rule.anchor_bol, rule.anchor_eol);
 		}
 	}
+
 	std::string generateCppClass(const std::string& class_name = "Tokenizer") {
 		NFABuilder builder;
 		NFAState* master = builder.createState();
 		for (const auto& r : rules) {
-			NFAFragment frag = builder.buildFromRegex(r.pattern, r.case_insensitive);
+			std::string pat = r.pattern;
+			bool bol = r.anchor_bol;
+			bool eol = r.anchor_eol;
+
+			// Extract leading '^' anchor if present
+			if (!pat.empty() && pat.front() == '^') {
+				bol = true;
+				pat.erase(0, 1);
+			}
+			// Extract trailing '$' anchor if present (and not escaped \$)
+			if (pat.size() >= 1 && pat.back() == '$' && (pat.size() < 2 || pat[pat.size() - 2] != '\\')) {
+				eol = true;
+				pat.pop_back();
+			}
+
+			NFAFragment frag = builder.buildFromRegex(pat, r.case_insensitive);
 			frag.end->is_accept = true;
 			frag.end->token_id = r.id;
+			frag.end->anchor_bol = bol;
+			frag.end->anchor_eol = eol;
 			master->epsilon_transitions.push_back(frag.start);
 		}
 
@@ -618,6 +673,21 @@ public:
 		}
 		ss << "\n    };\n\n";
 
+		// Anchor Tables
+		ss << "    static inline constexpr bool anchor_bol_table[" << num_states << "] = {\n        ";
+		for (int s = 0; s < num_states; ++s) {
+			ss << (min_dfa[s]->is_accept && min_dfa[s]->anchor_bol ? "true" : "false") << (s < num_states - 1 ? ", " : "");
+			if ((s + 1) % 16 == 0 && s < num_states - 1) ss << "\n        ";
+		}
+		ss << "\n    };\n\n";
+
+		ss << "    static inline constexpr bool anchor_eol_table[" << num_states << "] = {\n        ";
+		for (int s = 0; s < num_states; ++s) {
+			ss << (min_dfa[s]->is_accept && min_dfa[s]->anchor_eol ? "true" : "false") << (s < num_states - 1 ? ", " : "");
+			if ((s + 1) % 16 == 0 && s < num_states - 1) ss << "\n        ";
+		}
+		ss << "\n    };\n\n";
+
 		ss << "public:\n";
 		ss << "    struct Token {\n";
 		ss << "        int id;\n";
@@ -645,8 +715,12 @@ public:
 		ss << "                if (current_state == 0) break;\n";
 		ss << "                pos++;\n";
 		ss << "                if (accept_table[current_state] > 0) {\n";
-		ss << "                    last_accept_state = current_state;\n";
-		ss << "                    last_accept_pos = pos;\n";
+		ss << "                    bool bol_ok = !anchor_bol_table[current_state] || (current_column == 1);\n";
+		ss << "                    bool eol_ok = !anchor_eol_table[current_state] || (pos >= input.size() || input[pos] == '\\n' || input[pos] == '\\r');\n";
+		ss << "                    if (bol_ok && eol_ok) {\n";
+		ss << "                        last_accept_state = current_state;\n";
+		ss << "                        last_accept_pos = pos;\n";
+		ss << "                    }\n";
 		ss << "                }\n";
 		ss << "            }\n\n";
 
