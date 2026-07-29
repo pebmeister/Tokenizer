@@ -242,7 +242,6 @@ private:
 
 	NFAFragment parseAtom(const std::string& pat, size_t& pos) {
 
-
 		auto pattern = pat;
 		std::cout << "parseAtom ";
 		std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
@@ -251,7 +250,6 @@ private:
 		}
 		std::cout << "\n";
 				
-		
 		
 		char c = pat[pos];
 		if (c == '(') {
@@ -281,6 +279,7 @@ private:
 		}
 
 		if (c == '\\') {
+			
 			pos++;
 			char e = pat[pos++];
 			if (e == 'd') return makeRange({ {'0', '9'} });
@@ -303,6 +302,8 @@ private:
 			        {static_cast<unsigned char>(' '+1), static_cast<unsigned char>(255)}
 			});
 
+			std::cout << "got escaped " << e << "\n";
+			
 			char r = e;
 			if (e == 'n') r = '\n';
 			else if (e == 'r') r = '\r';
