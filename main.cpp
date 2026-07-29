@@ -1,4 +1,3 @@
-#pragma once
 // written by Paul Baxter
 
 #include <format>
