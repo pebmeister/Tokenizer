@@ -150,6 +150,7 @@ private:
 	NFAFragment parseExpression(const std::string& pat, size_t& pos) {
 
 		auto pattern = pat;
+		std::cout << "parseExpression  ";
 		std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
 		for (char c : pattern) {
     			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
@@ -240,6 +241,18 @@ private:
 	}
 
 	NFAFragment parseAtom(const std::string& pat, size_t& pos) {
+
+
+		auto pattern = pat;
+		std::cout << "parseAtom ";
+		std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
+		for (char c : pattern) {
+    			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
+		}
+		std::cout << "\n";
+				
+		
+		
 		char c = pat[pos];
 		if (c == '(') {
 			pos++;
