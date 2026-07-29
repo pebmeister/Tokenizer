@@ -33,7 +33,7 @@ int main() {
         { "\\+|\\-|\\*|\\/|=",           TOKEN_OPERATOR },
 
         // Whitespace (spaces, tabs, newlines)
-        { "[ \t\r\n]+",               TOKEN_WHITESPACE }
+        { "[ \\t\\r\\n]+",               TOKEN_WHITESPACE }
     });
 
     // 2. Generate the C++ code for the compiled DFA tokenizer
