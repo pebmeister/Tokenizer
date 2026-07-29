@@ -264,21 +264,21 @@ private:
 			if (e == 'w') return makeRange({ {'a', 'z'}, {'A', 'Z'}, {'0', '9'}, {'_', '_'} });
 			if (e == 's') return makeRange({ {' ', ' '}, {'\t', '\t'}, {'\r', '\r'}, {'\n', '\n'} });
 			if (e == 'D') return makeRange({ 
-			        {0, static_cast<unsigned_char>('0'-1)},
-			        {static_cast<unsigned_char>('9'+1), static_cast<unsigned_char>(255)}
+			        {0, static_cast<unsigned char>('0'-1)},
+			        {static_cast<unsigned char>('9'+1), static_cast<unsigned char>(255)}
 			});
 			if (e == 'W') return makeRange({
-			        {0, static_cast<unsigned_char>('0'-1)},
-			        {static_cast<unsigned_char>('9'+1), static_cast<unsigned_char>('A'-1)},
-			        {static_cast<unsigned_char>('Z'+1), static_cast<unsigned_char>('_'-1)},
-			        {static_cast<unsigned_char>('_'+1), static_cast<unsigned_char>('a'-1)},
-			        {static_cast<unsigned_char>('z'+1), static_cast<unsigned_char>(255)}
+			        {0, static_cast<unsigned char>('0'-1)},
+			        {static_cast<unsigned char>('9'+1), static_cast<unsigned char>('A'-1)},
+			        {static_cast<unsigned char>('Z'+1), static_cast<unsigned char>('_'-1)},
+			        {static_cast<unsigned char>('_'+1), static_cast<unsigned char>('a'-1)},
+			        {static_cast<unsigned char>('z'+1), static_cast<unsigned char>(255)}
 			});
 			if (e == 'S') return makeRange({ 
-			        {0, static_cast<unsigned_char>('\t'-1)},
-			        {static_cast<unsigned_char>('\n'+1), static_cast<unsigned_char>('\r'-1)},
-			        {static_cast<unsigned_char>('\r'+1), static_cast<unsigned_char>(' '-1)},
-			        {static_cast<unsigned_char>(' '+1), static_cast<unsigned_char>(255)}
+			        {0, static_cast<unsigned char>('\t'-1)},
+			        {static_cast<unsigned char>('\n'+1), static_cast<unsigned char>('\r'-1)},
+			        {static_cast<unsigned char>('\r'+1), static_cast<unsigned char>(' '-1)},
+			        {static_cast<unsigned char>(' '+1), static_cast<unsigned char>(255)}
 			});
 
 			char r = e;
