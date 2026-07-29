@@ -15,8 +15,8 @@ int main() {
                       << ": Unexpected character '" << tok.lexeme << "'\n";
 
             // Column is 0-indexed position
-            if (source_code.length() > tok.column ) {
-                unsigned char c = source_code[tok.column];
+            if (source_code.length() >= tok.column ) {
+                unsigned char c = source_code[tok.colum -1];
                 std::cout << "Byte at column" << tok.column << ":" << (int)c 
                       << " (0x" << std::hex << (int)c << std::dec << ")\n";
             }
