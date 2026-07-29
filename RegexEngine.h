@@ -328,6 +328,8 @@ private:
 		char c = pattern[pos++];
         if (c == '\\' && pos < pattern.length()) {
             char escaped = pattern[pos++];
+
+			std::cout << "parseClassChar escaped " << escaped << "\n";
             switch (escaped) {
                 case 'n': return '\n';
                 case 'r': return '\r';
