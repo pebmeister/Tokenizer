@@ -623,13 +623,6 @@ public:
 		ss << "        int id;\n";
 		ss << "        std::string lexeme;\n";
 		ss << "        size_t position;\n";
-		ss << "    };\n\n";
-
-		ss << "public:\n";
-		ss << "    struct Token {\n";
-		ss << "        int id;\n";
-		ss << "        std::string lexeme;\n";
-		ss << "        size_t position;\n";
 		ss << "        size_t line;\n";
 		ss << "        size_t column;\n";
 		ss << "    };\n\n";
