@@ -318,7 +318,15 @@ private:
 	}
 
     char parseClassChar(const std::string& pattern, size_t& pos) {
-        char c = pattern[pos++];
+			auto pattern = pat;
+			std::cout << "parseClassChar  ";
+			std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
+			for (char c : pattern) {
+    			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
+			}
+
+		
+		char c = pattern[pos++];
         if (c == '\\' && pos < pattern.length()) {
             char escaped = pattern[pos++];
             switch (escaped) {
