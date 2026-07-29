@@ -1,56 +1,49 @@
-Here is a complete, well-structured README.md tailored for your source code.
-RegexCompiler
-A lightweight, header-only C++17 library that compiles regular expressions into optimized Deterministic Finite Automata (DFA) and generates standalone, dependency-free C++ tokenizer classes.
-Written by Paul Baxter.
-Overview
-RegexCompiler implements a classic compiler frontend pipeline to translate high-level regex patterns into high-performance lexers. Instead of interpreting regexes at runtime, it constructs a minimized DFA and generates a self-contained C++ class featuring O(N) tokenization speed via fast array lookups.
-Key Features
- * Header-Only & Dependency-Free: Requires only standard C++17. No external libraries needed.
- * Full Lexing Pipeline:
-   * NFA Engine: Built with Thompson's Construction.
-   * DFA Conversion: Powerset Construction (Subset Construction).
-   * Minimization: Hopcroft's Algorithm for minimal state count.
-   * Table Compression: Automatically maps byte sets (0–255) to character equivalence classes to keep memory footprint tiny.
- * Maximal Munch Matching: Tokenizer defaults to longest-match rules with automatic fallback handling for unmatched characters (token_id = -1).
- * Standalone Code Generation: Emits a clean, header-only C++ class (default name: Tokenizer) containing lookup tables and a static tokenize() method.
- * Case-Insensitive Support: Per-rule flag to easily match case-insensitively.
-Pipeline Architecture
-  Regex Patterns
-        │
-        ▼
- ┌──────────────┐
- │  NFABuilder  │  Thompson's Construction Algorithm
- └──────┬───────┘
-        │  NFA State Graph
-        ▼
- ┌──────────────┐
- │ DFAConverter │  Powerset / Subset Construction
- └──────┬───────┘
-        │  Raw DFA
-        ▼
- ┌──────────────┐
- │ Minimize DFA │  Hopcroft's Minimization + Byte Equivalence Compression
- └──────┬───────┘
-        │  Minimized Transition Tables
-        ▼
- ┌──────────────┐
- │ Code Gen     │  Generates standalone C++ Tokenizer class
- └──────────────┘
+Regex Patterns
+│
+▼
+┌──────────────┐
+│  NFABuilder  │  Thompson's Construction Algorithm
+└──────┬───────┘
+│  NFA State Graph
+▼
+┌──────────────┐
+│ DFAConverter │  Powerset / Subset Construction
+└──────┬───────┘
+│  Raw DFA
+▼
+┌──────────────┐
+│ Minimize DFA │  Hopcroft's Minimization + Byte Equivalence Compression
+└──────┬───────┘
+│  Minimized Transition Tables
+▼
+┌──────────────┐
+│ Code Gen     │  Generates standalone C++ Tokenizer class
+└──────────────┘
 
-Supported Regex Syntax
+---
+
+## Supported Regex Syntax
+
 | Syntax | Description | Example |
 |---|---|---|
-| a, abc | Literal characters and concatenations | cat |
-| `a | b` | Alternation (OR) |
-| *, +, ? | Zero-or-more, One-or-more, Optional | a*, b+, colou?r |
-| {n}, {n,m}, {n,} | Exact, bounded, or unbounded repetition | \d{4}, [a-z]{2,4} |
-| [a-z], [^0-9] | Character classes and negated character classes | [A-Za-z0-9_] |
-| \d, \w, \s | Shorthand digits (0-9), word characters, whitespace | \w+ |
-| \n, \r, \t, \\ | Escape sequences | \t+ |
-| (...) | Grouping for operator precedence | (ab)+ |
-Quick Start
-1. Generating a Tokenizer
+| `a`, `abc` | Literal characters and concatenations | `cat` |
+| `a\|b` | Alternation (OR) | `true\|false` |
+| `*`, `+`, `?` | Zero-or-more, One-or-more, Optional | `a*`, `b+`, `colou?r` |
+| `{n}`, `{n,m}`, `{n,}` | Exact, bounded, or unbounded repetition | `\\d{4}`, `[a-z]{2,4}` |
+| `[a-z]`, `[^0-9]` | Character classes and negated character classes | `[A-Za-z0-9_]` |
+| `\\d`, `\\w`, `\\s` | Shorthand digits (`0-9`), word characters, whitespace | `\\w+` |
+| `\\n`, `\\r`, `\\t`, `\\\\` | Escape sequences | `\\t+` |
+| `(...)` | Grouping for operator precedence | `(ab)+` |
+
+---
+
+## Quick Start
+
+### 1. Generating a Tokenizer
+
 Include the header, register your regex rules with associated Token IDs, and generate the source code for your tokenizer:
+
+```cpp
 #include <iostream>
 #include <fstream>
 #include "RegexCompiler.hpp" // Or whatever name you saved the header as
@@ -71,9 +64,9 @@ int main() {
     compiler.addRules({
         { "if|else|while|return", KEYWORD,    false },
         { "[a-zA-Z_][a-zA-Z0-9_]*", IDENTIFIER, false },
-        { "\\d+(\\.\\d+)?",       NUMBER,     false },
-        { "==|!=|\\+|\\-|\\*|/",   OPERATOR,   false },
-        { "\\s+",                 WHITESPACE, false }
+        { "\\\\d+(\\\\.\\\\d+)?",       NUMBER,     false },
+        { "==|!=|\\\\+|\\\\-|\\\\*|/",   OPERATOR,   false },
+        { "\\\\s+",                 WHITESPACE, false }
     });
 
     // Generate C++ code for a class named "Lexer"
@@ -84,7 +77,7 @@ int main() {
     out << code;
     out.close();
 
-    std::cout << "Lexer header generated successfully!\n";
+    std::cout << "Lexer header generated successfully!\\n";
     return 0;
 }
 
@@ -101,8 +94,8 @@ int main() {
 
     for (const auto& token : tokens) {
         std::cout << "Token ID: " << token.id 
-                  << " | Lexeme: \"" << token.lexeme << "\""
-                  << " | Pos: " << token.position << "\n";
+                  << " | Lexeme: \\"" << token.lexeme << "\\""
+                  << " | Pos: " << token.position << "\\n";
     }
 
     return 0;
@@ -122,3 +115,21 @@ Requirements
  * Header Dependencies: <iostream>, <vector>, <string>, <memory>, <set>, <map>, <stdexcept>, <cctype>, <algorithm>, <sstream>.
 License
 This source code is provided as-is. Feel free to use and modify it in your own projects.
+"""
+file_path = "README.md"
+with open(file_path, "w", encoding="utf-8") as f:
+f.write(readme_content)
+print(f"File saved successfully as {file_path}")
+
+```text?code_stdout&code_event_index=1
+File saved successfully as README.md
+
+
+README Summary
+The README.md file includes:
+ * Project Overview: Explains the library's purpose as a header-only C++17 regex compiler and lexer code generator written by Paul Baxter.
+ * Key Features: Highlights Thompson's NFA construction, Powerset DFA conversion, Hopcroft's DFA minimization, byte equivalence class compression, and standalone C++ class code generation.
+ * Pipeline Architecture: Visual ASCII diagram detailing the step-by-step translation process.
+ * Supported Regex Syntax: Reference table for regex operators (*, +, ?, {n,m}, [...], \d, \w, \s, etc.).
+ * Quick Start Guide: Complete, compile-ready code examples demonstrating how to construct a RegexCompiler instance, generate a Lexer.hpp header, and consume the generated static tokenize() interface.
+ * Token Structure & Requirements: Documents the generated Token layout and necessary C++17 dependencies.
