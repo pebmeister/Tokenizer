@@ -149,14 +149,15 @@ public:
 private:
 	NFAFragment parseExpression(const std::string& pat, size_t& pos) {
 
-		auto pattern = pat;
-		std::cout << "parseExpression  ";
-		std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
-		for (char c : pattern) {
+		if (pat.size() == 10) {
+			auto pattern = pat;
+			std::cout << "parseExpression  ";
+			std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
+			for (char c : pattern) {
     			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
+			}
+			std::cout << "\n";
 		}
-		std::cout << "\n";
-		
 		
 		NFAFragment left = parseConcat(pat, pos);
 		while (pos < pat.size() && pat[pos] == '|') {
