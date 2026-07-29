@@ -262,7 +262,7 @@ private:
 			char e = pat[pos++];
 			if (e == 'd') return makeRange({ {'0', '9'} });
 			if (e == 'w') return makeRange({ {'a', 'z'}, {'A', 'Z'}, {'0', '9'}, {'_', '_'} });
-			if (e == 's') return makeRange({ {' ', ' '}, {'\t', '\t'}, {'\r', '\r'}, {'\n', '\n'} });
+			if (e == 's') return makeRange({ {' ', ' '}, {'\t', '\r'} });
 			if (e == 'D') return makeRange({ 
 			        {0, static_cast<unsigned char>('0'-1)},
 			        {static_cast<unsigned char>('9'+1), static_cast<unsigned char>(255)}
