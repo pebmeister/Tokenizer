@@ -276,7 +276,6 @@ private:
 			});
 			if (e == 'S') return makeRange({ 
 			        {0, static_cast<unsigned char>('\t'-1)},
-			        {static_cast<unsigned char>('\n'+1), static_cast<unsigned char>('\r'-1)},
 			        {static_cast<unsigned char>('\r'+1), static_cast<unsigned char>(' '-1)},
 			        {static_cast<unsigned char>(' '+1), static_cast<unsigned char>(255)}
 			});
