@@ -318,7 +318,6 @@ private:
 	}
 
     char parseClassChar(const std::string& pattern, size_t& pos) {
-			auto pattern = pat;
 			std::cout << "parseClassChar  ";
 			std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
 			for (char c : pattern) {
