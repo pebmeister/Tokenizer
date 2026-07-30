@@ -148,16 +148,6 @@ public:
 
 private:
 	NFAFragment parseExpression(const std::string& pat, size_t& pos) {
-
-		if (pat.size() == 10) {
-			auto pattern = pat;
-			std::cout << "parseExpression  ";
-			std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
-			for (char c : pattern) {
-    			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
-			}
-			std::cout << "\n";
-		}
 		
 		NFAFragment left = parseConcat(pat, pos);
 		while (pos < pat.size() && pat[pos] == '|') {
@@ -243,16 +233,6 @@ private:
 
 	NFAFragment parseAtom(const std::string& pat, size_t& pos) {
 
-		if (pat.size() == 10) {
-			auto pattern = pat;
-			std::cout << "parseAtom  ";
-			std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
-			for (char c : pattern) {
-    			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
-			}
-			std::cout << "\n";
-		}
-		
 		char c = pat[pos];
 		if (c == '(') {
 			pos++;
@@ -303,10 +283,7 @@ private:
 			        {static_cast<unsigned char>('\r'+1), static_cast<unsigned char>(' '-1)},
 			        {static_cast<unsigned char>(' '+1), static_cast<unsigned char>(255)}
 			});
-
-			std::cout << "parseAtom  ";
-			std::cout << "got escaped " << e << "\n";
-			
+	
 			char r = e;
 			if (e == 'n') r = '\n';
 			else if (e == 'r') r = '\r';
