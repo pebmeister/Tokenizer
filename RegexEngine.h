@@ -368,7 +368,14 @@ private:
             }
             inc = std::move(inv);
         }
-        
+
+
+		std::cout << "DEBUG inc ";
+		for (char c : inc) {
+    		std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
+		}
+		std::cout << "\n";
+		
         std::vector<CharRange> ranges;
         if (!inc.empty()) {
             auto it = inc.begin();
