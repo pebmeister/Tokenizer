@@ -368,24 +368,31 @@ private:
     		std::cout << "[" << (int)(unsigned char)c << "] ";
 		}
 		std::cout << "\n";
-		
-        std::vector<CharRange> ranges;
+
+		std::vector<CharRange> ranges;
         if (!inc.empty()) {
             auto it = inc.begin();
-            unsigned char rs = *it, prev = *it;
+            unsigned char rs = static_cast<unsigned char>(*it);
+            unsigned char prev = static_cast<unsigned char>(*it);
             it++;
+
             for (; it != inc.end(); ++it) {
-                if (*it == prev + 1) prev = *it;
-                else {
-					std::cout << "DEBUG ADD RANGE " << (unsigned char) rs << " - " << (unsigned char) prev << "\n";
+                unsigned char curr = static_cast<unsigned char>(*it);
+                if (curr == prev + 1) {
+                    prev = curr;
+                } else {
+                    std::cout << "DEBUG ADD RANGE " << static_cast<int>(rs) 
+                              << " - " << static_cast<int>(prev) << "\n";
                     ranges.push_back({ rs, prev });
-                    rs = *it;
-                    prev = *it;
+                    rs = curr;
+                    prev = curr;
                 }
             }
-			std::cout << "DEBUG ADD RANGE " << (unsigned char)rs << " - " << (unsigned char)prev << "\n";
-			ranges.push_back({ rs, prev });
+            std::cout << "DEBUG ADD RANGE " << static_cast<int>(rs) 
+                      << " - " << static_cast<int>(prev) << "\n";
+            ranges.push_back({ rs, prev });
         }
+
         return makeRange(ranges, false);
     }
 }; // <-- THIS BRACE WAS MISSING
