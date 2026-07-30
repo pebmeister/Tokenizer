@@ -295,18 +295,19 @@ private:
 	}
 
     char parseClassChar(const std::string& pattern, size_t& pos) {
-			std::cout << "parseClassChar  ";
-			std::cout << "DEBUG PATTERN: \"" << pattern << "\" (len=" << pattern.size() << ")\n";
+			std::cout << "DEBUG parseClassChar <<
+				<< "PATTERN: \"" << pattern << "\" (pos = " << pos << " len=" << pattern.size() << ")\n";
 			for (char c : pattern) {
     			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
 			}
+			std::cout << "\n";
 
 		
 		char c = pattern[pos++];
         if (c == '\\' && pos < pattern.length()) {
             char escaped = pattern[pos++];
 
-			std::cout << "parseClassChar escaped " << escaped << "\n";
+			std::cout << "DEBUG: escaped [" << escaped << "]\n";
             switch (escaped) {
                 case 'n': return '\n';
                 case 'r': return '\r';
