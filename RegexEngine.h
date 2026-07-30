@@ -295,7 +295,7 @@ private:
 	}
 
     char parseClassChar(const std::string& pattern, size_t& pos) {
-			std::cout << "DEBUG parseClassChar " <<
+			std::cout << "DEBUG parseClassChar "
 				<< "PATTERN: \"" << pattern << "\" (pos = " << pos << " len=" << pattern.size() << ")\n";
 			for (char c : pattern) {
     			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
