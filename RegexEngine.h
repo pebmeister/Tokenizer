@@ -295,14 +295,7 @@ private:
 	}
 
     char parseClassChar(const std::string& pattern, size_t& pos) {
-			std::cout << "DEBUG parseClassChar "
-				<< "PATTERN: \"" << pattern << "\" (pos = " << pos << " len=" << pattern.size() << ")\n";
-			for (char c : pattern) {
-    			std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
-			}
-			std::cout << "\n";
 
-		
 		char c = pattern[pos++];
         if (c == '\\' && pos < pattern.length()) {
             char escaped = pattern[pos++];
@@ -372,7 +365,7 @@ private:
 
 		std::cout << "DEBUG inc ";
 		for (char c : inc) {
-    		std::cout << "[" << (int)(unsigned char)c << ":" << c << "] ";
+    		std::cout << "[" << (int)(unsigned char)c << "] ";
 		}
 		std::cout << "\n";
 		
@@ -384,12 +377,14 @@ private:
             for (; it != inc.end(); ++it) {
                 if (*it == prev + 1) prev = *it;
                 else {
+					std::cout << "DEBUG ADD RANGE " << rs << " - " << prev << "\n";
                     ranges.push_back({ rs, prev });
                     rs = *it;
                     prev = *it;
                 }
             }
-            ranges.push_back({ rs, prev });
+			std::cout << "DEBUG ADD RANGE " << rs << " - " << prev << "\n";
+			ranges.push_back({ rs, prev });
         }
         return makeRange(ranges, false);
     }
