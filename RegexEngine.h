@@ -300,13 +300,44 @@ private:
         if (c == '\\' && pos < pattern.length()) {
             char escaped = pattern[pos++];
 
-			std::cout << "DEBUG: escaped [" << escaped << "]\n";
             switch (escaped) {
                 case 'n': return '\n';
                 case 'r': return '\r';
                 case 't': return '\t';
-                case '0': return '\0';
-                default:  return escaped; // Handles '\]', '\-', '\\', etc.
+				case 'f': return '\f';
+				case 'v': return '\v';
+				case 'a': return '\a';
+                case '0': 
+					if ((pos + 2 < pattern.length())
+							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
+							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
+						auto number = std::stoi(pattern.substr(pos, 2), 0, 8);
+						pos += 2;
+						return static_cast<char>(number);
+					}
+					return '\0';
+				
+				case 'x': 
+					if ((pos + 2 < pattern.length())
+							&& std::isxdigit(pattern[pos])
+							&& std::isxdigit(pattern[pos+1]) ) {
+						auto number = std::stoi(pattern.substr(pos, 2), 0, 16);
+						pos += 2;
+						return static_cast<char>(number);
+					}
+					throw std::runtime_error("invalid escape sequence");
+					break;
+					
+                default:  
+					if ((pos + 2 < pattern.length())
+							&& (pattern[pos-] >= '0' && pattern[pos-1] <= '7')
+							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
+							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
+						auto number = std::stoi(pattern.substr(pos-1, 3), 0, 8);
+						pos += 2;
+						return static_cast<char>(number);
+					}					
+					return escaped; // Handles '\]', '\-', '\\', etc.
             }
         }
         return c;
