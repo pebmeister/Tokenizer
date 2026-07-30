@@ -64,10 +64,8 @@ private:
 					if ((pos + 2 < pattern.length())
 							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
 							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
-						auto number = std::stoi(pattern.substr(pos, 2), 0, 8);
-						if (number > 255) {
-							throw std::runtime_error("Octal escape sequence out of range");
-						}
+						auto number = std::stoi(pattern.substr(pos-1, 3), 0, 8);
+						if (number > 255) throw std::runtime_error("Octal escape sequence out of range");
 						pos += 2;
 						return static_cast<char>(number);
 					}
@@ -90,6 +88,7 @@ private:
 							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
 							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
 						auto number = std::stoi(pattern.substr(pos-1, 3), 0, 8);
+						if (number > 255) throw std::runtime_error("Octal escape sequence out of range");						
 						pos += 2;
 						return static_cast<char>(number);
 					}					
