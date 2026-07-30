@@ -22,15 +22,15 @@ int main() {
     // Option B: Batch registration via addRules() initializer list
     compiler.addRules({
         // Keywords (Case-insensitive)
-        { "PRINT|GOTO|IF|THEN|FOR|NEXT", TOKEN_KEYWORD, true },
+//        { "PRINT|GOTO|IF|THEN|FOR|NEXT", TOKEN_KEYWORD, true },
 
         // Identifiers & Numbers
-        { "[a-zA-Z_][a-zA-Z0-9_]*",     TOKEN_IDENTIFIER },
-        { "[0-9]+(\\.[0-9]+)?",          TOKEN_NUMBER },
+//        { "[a-zA-Z_][a-zA-Z0-9_]*",     TOKEN_IDENTIFIER },
+//        { "[0-9]+(\\.[0-9]+)?",          TOKEN_NUMBER },
 
         // Strings & Operators
-        { "\"([^\"]|\\\\\")*\"",         TOKEN_STRING },
-        { "\\+|\\-|\\*|\\/|=",           TOKEN_OPERATOR },
+//       { "\"([^\"]|\\\\\")*\"",         TOKEN_STRING },
+//      { "\\+|\\-|\\*|\\/|=",           TOKEN_OPERATOR },
 
         // Whitespace (spaces, tabs, newlines)
         { "[ \\t\\r\\n]+",               TOKEN_WHITESPACE }
