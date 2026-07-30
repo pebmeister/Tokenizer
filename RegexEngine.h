@@ -50,7 +50,7 @@ private:
 
 	char parseClassChar(const std::string& pattern, size_t& pos) {
 		char c = pattern[pos++];
-		auto len = pattern.length()
+		auto len = pattern.length();
     	if (c == '\\' && pos < len) {
      	   char escaped = pattern[pos++];
 
