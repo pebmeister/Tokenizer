@@ -377,13 +377,13 @@ private:
             for (; it != inc.end(); ++it) {
                 if (*it == prev + 1) prev = *it;
                 else {
-					std::cout << "DEBUG ADD RANGE " << rs << " - " << prev << "\n";
+					std::cout << "DEBUG ADD RANGE " << (unsigned char) rs << " - " << (unsigned char) prev << "\n";
                     ranges.push_back({ rs, prev });
                     rs = *it;
                     prev = *it;
                 }
             }
-			std::cout << "DEBUG ADD RANGE " << rs << " - " << prev << "\n";
+			std::cout << "DEBUG ADD RANGE " << (unsigned char)rs << " - " << (unsigned char)prev << "\n";
 			ranges.push_back({ rs, prev });
         }
         return makeRange(ranges, false);
