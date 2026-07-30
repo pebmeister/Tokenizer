@@ -362,13 +362,6 @@ private:
             inc = std::move(inv);
         }
 
-
-		std::cout << "DEBUG inc ";
-		for (char c : inc) {
-    		std::cout << "[" << (int)(unsigned char)c << "] ";
-		}
-		std::cout << "\n";
-
 		std::vector<CharRange> ranges;
         if (!inc.empty()) {
             auto it = inc.begin();
@@ -381,15 +374,11 @@ private:
                 if (curr == prev + 1) {
                     prev = curr;
                 } else {
-                    std::cout << "DEBUG ADD RANGE " << static_cast<int>(rs) 
-                              << " - " << static_cast<int>(prev) << "\n";
                     ranges.push_back({ rs, prev });
                     rs = curr;
                     prev = curr;
                 }
             }
-            std::cout << "DEBUG ADD RANGE " << static_cast<int>(rs) 
-                      << " - " << static_cast<int>(prev) << "\n";
             ranges.push_back({ rs, prev });
         }
 
