@@ -50,7 +50,8 @@ private:
 
 	char parseClassChar(const std::string& pattern, size_t& pos) {
 		char c = pattern[pos++];
-    	if (c == '\\' && pos < pattern.length()) {
+		auto len = pattern.length()
+    	if (c == '\\' && pos < len) {
      	   char escaped = pattern[pos++];
 
         	switch (escaped) {
@@ -61,7 +62,7 @@ private:
 				case 'v': return '\v';
 				case 'a': return '\a';
             	case '0': 
-					if ((pos + 2 < pattern.length())
+					if ((pos + 2 < len)
 							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
 							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
 						auto number = std::stoi(pattern.substr(pos-1, 3), 0, 8);
@@ -72,7 +73,7 @@ private:
 					return '\0';
 					
 				case 'x': 
-					if ((pos + 2 < pattern.length())
+					if ((pos + 2 < len)
 							&& std::isxdigit(pattern[pos])
 							&& std::isxdigit(pattern[pos+1]) ) {
 						auto number = std::stoi(pattern.substr(pos, 2), 0, 16);
@@ -83,7 +84,7 @@ private:
 					break;
 					
              	default:  
-					if ((pos + 2 < pattern.length())
+					if ((pos + 2 < len)
 							&& (pattern[pos-1] >= '0' && pattern[pos-1] <= '7')
 							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
 							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
