@@ -330,7 +330,7 @@ private:
 					
                 default:  
 					if ((pos + 2 < pattern.length())
-							&& (pattern[pos-] >= '0' && pattern[pos-1] <= '7')
+							&& (pattern[pos-1] >= '0' && pattern[pos-1] <= '7')
 							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
 							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
 						auto number = std::stoi(pattern.substr(pos-1, 3), 0, 8);
