@@ -684,7 +684,6 @@ public:
 
 	void addRules(std::initializer_list<RuleSpec> rule_list) {
 		for (const auto& rule : rule_list) {
-			std::cout << "adding rule '" << rule.pattern << "'\n";
 			addRule(rule.pattern, rule.token_id, rule.case_insensitive, rule.anchor_bol, rule.anchor_eol);
 		}
 	}
