@@ -48,6 +48,57 @@ private:
 	int next_id_ = 0;
 	bool case_insensitive_ = false;
 
+	char parseClassChar(const std::string& pattern, size_t& pos) {
+		char c = pattern[pos++];
+    	if (c == '\\' && pos < pattern.length()) {
+     	   char escaped = pattern[pos++];
+
+        	switch (escaped) {
+        		case 'n': return '\n';
+            	case 'r': return '\r';
+            	case 't': return '\t';
+				case 'f': return '\f';
+				case 'v': return '\v';
+				case 'a': return '\a';
+            	case '0': 
+					if ((pos + 2 < pattern.length())
+							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
+							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
+						auto number = std::stoi(pattern.substr(pos, 2), 0, 8);
+						if (number > 255) {
+							throw std::runtime_error("Octal escape sequence out of range");
+						}
+						pos += 2;
+						return static_cast<char>(number);
+					}
+					return '\0';
+					
+				case 'x': 
+					if ((pos + 2 < pattern.length())
+							&& std::isxdigit(pattern[pos])
+							&& std::isxdigit(pattern[pos+1]) ) {
+						auto number = std::stoi(pattern.substr(pos, 2), 0, 16);
+						pos += 2;
+						return static_cast<char>(number);
+					}
+					throw std::runtime_error("Invalid hex escape sequence");
+					break;
+					
+             	default:  
+					if ((pos + 2 < pattern.length())
+							&& (pattern[pos-1] >= '0' && pattern[pos-1] <= '7')
+							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
+							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
+						auto number = std::stoi(pattern.substr(pos-1, 3), 0, 8);
+						pos += 2;
+						return static_cast<char>(number);
+					}					
+					return escaped; // Handles '\]', '\-', '\\', etc.
+        	}
+    	}
+   	 	return c;
+	}
+
 	std::vector<CharRange> applyCaseInsensitivity(const std::vector<CharRange>& input_ranges) {
 		if (!case_insensitive_) return input_ranges;
 		std::set<unsigned char> bytes;
@@ -261,7 +312,6 @@ private:
 		}
 
 		if (c == '\\') {
-			
 			pos++;
 			char e = pat[pos++];
 			if (e == 'd') return makeRange({ {'0', '9'} });
@@ -283,65 +333,15 @@ private:
 			        {static_cast<unsigned char>('\r'+1), static_cast<unsigned char>(' '-1)},
 			        {static_cast<unsigned char>(' '+1), static_cast<unsigned char>(255)}
 			});
-	
-			char r = e;
-			if (e == 'n') r = '\n';
-			else if (e == 'r') r = '\r';
-			else if (e == 't') r = '\t';
+
+			// let parseClassChar handle it for consistant C++ escape sequences
+			pos--;
+			char r = parseClassChar(pat, pos);
 			return makeRange({ {static_cast<unsigned char>(r), static_cast<unsigned char>(r)} });
 		}
 		pos++;
 		return makeRange({ {static_cast<unsigned char>(c), static_cast<unsigned char>(c)} });
 	}
-
-    char parseClassChar(const std::string& pattern, size_t& pos) {
-
-		char c = pattern[pos++];
-        if (c == '\\' && pos < pattern.length()) {
-            char escaped = pattern[pos++];
-
-            switch (escaped) {
-                case 'n': return '\n';
-                case 'r': return '\r';
-                case 't': return '\t';
-				case 'f': return '\f';
-				case 'v': return '\v';
-				case 'a': return '\a';
-                case '0': 
-					if ((pos + 2 < pattern.length())
-							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
-							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
-						auto number = std::stoi(pattern.substr(pos, 2), 0, 8);
-						pos += 2;
-						return static_cast<char>(number);
-					}
-					return '\0';
-				
-				case 'x': 
-					if ((pos + 2 < pattern.length())
-							&& std::isxdigit(pattern[pos])
-							&& std::isxdigit(pattern[pos+1]) ) {
-						auto number = std::stoi(pattern.substr(pos, 2), 0, 16);
-						pos += 2;
-						return static_cast<char>(number);
-					}
-					throw std::runtime_error("invalid escape sequence");
-					break;
-					
-                default:  
-					if ((pos + 2 < pattern.length())
-							&& (pattern[pos-1] >= '0' && pattern[pos-1] <= '7')
-							&& (pattern[pos] >= '0' && pattern[pos] <= '7')
-							&& (pattern[pos+1] >= '0' && pattern[pos+1] <= '7')) {
-						auto number = std::stoi(pattern.substr(pos-1, 3), 0, 8);
-						pos += 2;
-						return static_cast<char>(number);
-					}					
-					return escaped; // Handles '\]', '\-', '\\', etc.
-            }
-        }
-        return c;
-    }
 
     NFAFragment parseCharacterClass(const std::string& pat, size_t& pos) {
         pos++;
