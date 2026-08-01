@@ -47,6 +47,7 @@ private:
 	std::vector<std::unique_ptr<NFAState>> all_states_;
 	int next_id_ = 0;
 	bool case_insensitive_ = false;
+
 	char parseClassChar(const std::string& pattern, size_t& pos) {
     	if (pos >= pattern.length()) {
         	return '\0';
